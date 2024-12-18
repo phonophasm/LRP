@@ -29,16 +29,19 @@ characters = {
 }
 
 weapon_sounds = {
-    "Daniel": pygame.mixer.Sound("sounds/daniel_weapon.wav"),
-    "Rob": pygame.mixer.Sound("sounds/rob_weapon.wav"),
-    "Pete": pygame.mixer.Sound("sounds/pete_weapon.wav"),
-    "Seb": pygame.mixer.Sound("sounds/seb_weapon.wav"),
-    "Hera": pygame.mixer.Sound("sounds/hera_weapon.wav")
+    "Daniel": pygame.mixer.Sound("sounds/daniel_weapon.mp3"),
+    "Rob": pygame.mixer.Sound("sounds/rob_weapon.mp3"),
+    "Pete": pygame.mixer.Sound("sounds/pete_weapon.mp3"),
+    "Seb": pygame.mixer.Sound("sounds/seb_weapon.mp3"),
+    "Hera": pygame.mixer.Sound("sounds/hera_weapon.mp3")
 }
 
 
 # Screen setup
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+#screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+#SCREEN_WIDTH, SCREEN_HEIGHT = screen.get_size()
+
 pygame.display.set_caption("Liquid Rigidity")
 
 # Clock for controlling the frame rate
@@ -50,7 +53,9 @@ level_music = {
     "level1": "sounds/level1_music.mp3",
     "level2": "sounds/level2_music.mp3",
     "level3": "sounds/level3_music.mp3",
-    "level4": "sounds/level4_music.mp3"
+    "level4": "sounds/level4_music.mp3",
+    "level5": "sounds/level5_music.mp3",
+    "level6": "sounds/level6_music.mp3"
 
 }
 
@@ -158,13 +163,13 @@ class Player(pygame.sprite.Sprite):
 
 
     def update(self, keys):
-        if keys[pygame.K_LEFT] and self.rect.left > 0:
+        if keys[pygame.K_a] and self.rect.left > 0:
             self.rect.x -= self.speed
-        if keys[pygame.K_RIGHT] and self.rect.right < SCREEN_WIDTH:
+        if keys[pygame.K_d] and self.rect.right < SCREEN_WIDTH:
             self.rect.x += self.speed
-        if keys[pygame.K_UP] and self.rect.top > 0:
+        if keys[pygame.K_w] and self.rect.top > 0:
             self.rect.y -= self.speed
-        if keys[pygame.K_DOWN] and self.rect.bottom < SCREEN_HEIGHT:
+        if keys[pygame.K_s] and self.rect.bottom < SCREEN_HEIGHT:
             self.rect.y += self.speed
 
     def use_weapon(self, mouse_pos):
@@ -220,6 +225,48 @@ class Obstacle(pygame.sprite.Sprite):
             self.speed_x = -self.speed_x
         if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
             self.speed_y = -self.speed_y
+
+class Flame(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((50, 50), pygame.SRCALPHA)
+        self.image.fill((255, 100, 0))  # Orange flames
+        self.rect = self.image.get_rect(center=(x, y))
+        self.size = 50  # Initial flame size
+        self.growth_rate = 1  # Rate at which flames grow over time
+
+    def grow(self):
+        """Increase the size of the flame."""
+        self.size += self.growth_rate
+        self.image = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
+        self.image.fill((255, random.randint(50, 100), 0))  # Randomize flame color
+        self.rect = self.image.get_rect(center=self.rect.center)
+
+    def shrink(self):
+        """Shrink the flame when hit by water."""
+        if self.size > 20:  # Minimum size
+            self.size -= 5
+            self.image = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
+            self.image.fill((255, random.randint(50, 100), 0))
+            self.rect = self.image.get_rect(center=self.rect.center)
+
+
+class Water(pygame.sprite.Sprite):
+    def __init__(self, position, direction):
+        super().__init__()
+        self.image = pygame.Surface((10, 10))
+        self.image.fill((0, 0, 255))  # Blue water
+        self.rect = self.image.get_rect(center=position)
+        self.velocity = direction * 10
+
+    def update(self):
+        """Move the water projectile."""
+        self.rect.x += self.velocity.x
+        self.rect.y += self.velocity.y
+        # Remove water if it goes off-screen
+        if not (0 <= self.rect.x <= SCREEN_WIDTH and 0 <= self.rect.y <= SCREEN_HEIGHT):
+            self.kill()
+
 
 
 # Function to display the welcome screen
@@ -305,6 +352,12 @@ def map_world(player):
                 elif i == 3:  # Level 4
                     display_level4_intro()
                     return "level4"
+                elif i == 4:  # Level 5
+                    return "level5"
+                elif i == 5:  # Level 6
+                    return "level6"
+
+
 
         screen.blit(player.image, player.rect)
 
@@ -568,13 +621,13 @@ def level3(player):
         # Check for collisions between player and animals (push animals)
         for animal in pygame.sprite.spritecollide(player, animals, False):  # Don't remove animals
             direction = pygame.math.Vector2(0, 0)
-            if keys[pygame.K_LEFT]:
+            if keys[pygame.K_a]:
                 direction.x = -1
-            if keys[pygame.K_RIGHT]:
+            if keys[pygame.K_d]:
                 direction.x = 1
-            if keys[pygame.K_UP]:
+            if keys[pygame.K_w]:
                 direction.y = -1
-            if keys[pygame.K_DOWN]:
+            if keys[pygame.K_s]:
                 direction.y = 1
 
             if direction.length() > 0:
@@ -802,13 +855,13 @@ def level4(player):
 
         # Check for movement input and move the player
         dx, dy = 0, 0
-        if keys[pygame.K_LEFT]:
+        if keys[pygame.K_a]:
             dx = -player.speed
-        if keys[pygame.K_RIGHT]:
+        if keys[pygame.K_d]:
             dx = player.speed
-        if keys[pygame.K_UP]:
+        if keys[pygame.K_w]:
             dy = -player.speed
-        if keys[pygame.K_DOWN]:
+        if keys[pygame.K_s]:
             dy = player.speed
 
         player.move(dx, dy, walls)
@@ -854,6 +907,282 @@ def show_hot_dog_scene():
     pygame.display.flip()
     pygame.time.wait(2000)  # Display scene for 2 seconds
 
+def display_level5_intro():
+    screen.fill(WHITE)
+    font = pygame.font.Font(None, 28)
+    story_lines = [
+        "As a child, I feared Spontaneous Human Combustion (SHC)...",
+        "Flames bursting from nowhere, consuming loved ones.",
+        "Now, in this nightmare, a man has caught fire!",
+        "Use your water pistol to extinguish the flames.",
+        "If the flames grow too large, it's game over!"
+    ]
+
+    # Draw the story text
+    y_offset = 100
+    for line in story_lines:
+        text = font.render(line, True, BLACK)
+        screen.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, y_offset))
+        y_offset += 40
+
+    # Draw the button using draw_label
+    button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT - 100, 200, 50)  # Button dimensions
+    pygame.draw.rect(screen, BLACK, button_rect)  # Button border
+    pygame.draw.rect(screen, WHITE, button_rect.inflate(-4, -4))  # Button fill
+    draw_label("Start Level 5", (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 75), font_size=28, color=BLACK)
+
+    pygame.display.flip()
+
+    # Wait for button click
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if button_rect.collidepoint(event.pos):  # Check if the button is clicked
+                    waiting = False
+
+
+
+
+def level5(player):
+    display_level5_intro()  # Show the introduction
+    play_music("level5")  # Play level-specific music
+
+    # Set up sprites
+    flames = pygame.sprite.Group()
+    water_shots = pygame.sprite.Group()
+
+    # Create a central flame
+    flame = Flame(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+    flames.add(flame)
+
+    running = True
+
+    while running:
+        screen.fill(WHITE)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            # Player shoots water with mouse click
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click
+                direction = pygame.math.Vector2(pygame.mouse.get_pos()) - player.rect.center
+                if direction.length() > 0:
+                    direction = direction.normalize()
+                    water = Water(player.rect.center, direction)
+                    water_shots.add(water)
+
+        # Movement (WASD or arrow keys)
+        keys = pygame.key.get_pressed()
+        dx, dy = 0, 0
+        if keys[pygame.K_a]:
+            dx = -player.speed
+        if keys[pygame.K_d]:
+            dx = player.speed
+        if keys[pygame.K_w]:
+            dy = -player.speed
+        if keys[pygame.K_s]:
+            dy = player.speed
+        player.move(dx, dy, pygame.sprite.Group())  # No walls in this level
+
+        # Update water shots
+        water_shots.update()
+
+        # Check collisions: water hits flames
+        for water in pygame.sprite.spritecollide(flame, water_shots, True):
+            flame.shrink()
+
+        # Flame grows over time
+        flame.grow()
+
+        # Check win condition
+        if flame.size <= 20:
+            draw_label("You extinguished the flames! Level Complete.", (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+            pygame.display.flip()
+            pygame.time.delay(2000)
+            pygame.mixer.music.stop()
+            return "map"
+
+        # Check fail condition
+        if flame.size >= 300:
+            draw_label("The flames got too big! Returning to map.", (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), color=RED)
+            pygame.display.flip()
+            pygame.time.delay(2000)
+            pygame.mixer.music.stop()
+            return "map"
+
+        # Draw everything
+        flames.draw(screen)
+        water_shots.draw(screen)
+        screen.blit(player.image, player.rect)
+
+        pygame.display.flip()
+        clock.tick(60)
+
+def level6(player):
+    display_level6_intro()  # Show intro
+    play_music("level6")  # Play level-specific music
+
+    TILE_SIZE = 40
+    WIN_THRESHOLD = 50  # Data points required to win
+    INITIAL_SPEED = 3
+    MAX_OBSTACLES = 10
+    MAX_DATA_POINTS = 15
+
+    # Create groups for data points and obstacles
+    data_points = pygame.sprite.Group()
+    obstacles = pygame.sprite.Group()
+
+    # Player stats
+    collected_data = 0
+    missed_data = 0
+    max_missed = 5  # Maximum missed data points before failure
+
+    # Game difficulty modifiers
+    spawn_rate = 1000  # Spawn every 1000ms initially
+    last_spawn_time = pygame.time.get_ticks()
+
+    running = True
+
+    while running:
+        screen.fill((10, 10, 20))  # Retro dark blue background
+
+        # Pulsing grid effect
+        for x in range(0, SCREEN_WIDTH, TILE_SIZE):
+            pygame.draw.line(screen, (30, 30, 60), (x, 0), (x, SCREEN_HEIGHT))
+        for y in range(0, SCREEN_HEIGHT, TILE_SIZE):
+            pygame.draw.line(screen, (30, 30, 60), (0, y), (SCREEN_WIDTH, y))
+
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        # Player movement (WASD)
+        keys = pygame.key.get_pressed()
+        dx, dy = 0, 0
+        if keys[pygame.K_a]:
+            dx = -player.speed
+        if keys[pygame.K_d]:
+            dx = player.speed
+        player.rect.x += dx
+        player.rect.x = max(50, min(player.rect.x, SCREEN_WIDTH - 50))  # Keep player on-screen
+
+        # Spawn new objects over time
+        current_time = pygame.time.get_ticks()
+        if current_time - last_spawn_time > spawn_rate:
+            # Spawn a data point
+            if len(data_points) < MAX_DATA_POINTS:
+                data = pygame.sprite.Sprite()
+                data.image = pygame.Surface((20, 20), pygame.SRCALPHA)
+                pygame.draw.circle(data.image, (0, 255, 255), (10, 10), 10)  # Cyan glowing data
+                data.rect = data.image.get_rect(center=(random.randint(100, SCREEN_WIDTH - 100), -TILE_SIZE))
+                data.velocity = INITIAL_SPEED + (collected_data // 10)  # Increase speed gradually
+                data_points.add(data)
+
+            # Spawn an obstacle
+            if len(obstacles) < MAX_OBSTACLES:
+                obstacle = pygame.sprite.Sprite()
+                obstacle.image = pygame.Surface((30, 30))
+                obstacle.image.fill((255, 0, 0))  # Red for glitches
+                obstacle.rect = obstacle.image.get_rect(center=(random.randint(100, SCREEN_WIDTH - 100), -TILE_SIZE))
+                obstacle.velocity = INITIAL_SPEED + (collected_data // 10)  # Increase speed gradually
+                obstacles.add(obstacle)
+
+            last_spawn_time = current_time
+
+        # Update data points
+        for data in data_points:
+            data.rect.y += data.velocity
+            if data.rect.top > SCREEN_HEIGHT:  # Missed data point
+                data.kill()
+                missed_data += 1
+            if data.rect.colliderect(player.rect):  # Collect data
+                data.kill()
+                collected_data += 1
+                print("Data collected!")
+
+        # Update obstacles
+        for obstacle in obstacles:
+            obstacle.rect.y += obstacle.velocity
+            if obstacle.rect.top > SCREEN_HEIGHT:  # Remove if off-screen
+                obstacle.kill()
+            if obstacle.rect.colliderect(player.rect):  # Collide with glitch
+                draw_label("You hit a glitch! Returning to map.", (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), font_size=28, color=RED)
+                pygame.display.flip()
+                pygame.time.delay(2000)
+                pygame.mixer.music.stop()
+                return "map"
+
+        # Draw everything
+        data_points.draw(screen)
+        obstacles.draw(screen)
+        screen.blit(player.image, player.rect)
+
+        # Draw stats
+        draw_label(f"Data Collected: {collected_data}/{WIN_THRESHOLD}", (150, 20), font_size=24)
+        draw_label(f"Missed Data: {missed_data}/{max_missed}", (SCREEN_WIDTH - 150, 20), font_size=24)
+
+        # Check win condition
+        if collected_data >= WIN_THRESHOLD:
+            draw_label("Level Complete! You collected enough data.", (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), font_size=28, color=RED)
+            pygame.display.flip()
+            pygame.time.delay(2000)
+            pygame.mixer.music.stop()
+            return "map"
+
+        # Check fail condition
+        if missed_data >= max_missed:
+            draw_label("Too many missed data points! Returning to map.", (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), font_size=28, color=RED)
+            pygame.display.flip()
+            pygame.time.delay(2000)
+            pygame.mixer.music.stop()
+            return "map"
+
+        pygame.display.flip()
+        clock.tick(60)
+
+
+
+
+def display_level6_intro():
+    screen.fill(WHITE)
+    font = pygame.font.Font(None, 28)
+    story_lines = [
+        "Lonely nights, staring at a TV screen...",
+        "Lost in cyberspace, I call for a 'data date'.",
+        "Collect all the data points to make a connection,",
+        "but beware the roaming glitches and viruses!",
+        "Hurry up, the clock is ticking..."
+    ]
+
+    y_offset = 100
+    for line in story_lines:
+        text = font.render(line, True, BLACK)
+        screen.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, y_offset))
+        y_offset += 40
+
+    draw_label("Click the button to begin!", (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 150))
+    button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT - 100, 200, 50)
+    pygame.draw.rect(screen, GRAY, button_rect)
+    draw_label("Start", (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 75), font_size=28)
+
+    pygame.display.flip()
+
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN and button_rect.collidepoint(event.pos):
+                waiting = False
 
 
 # Main game loop
@@ -872,5 +1201,11 @@ while True:
         current_level = level3(player)
     elif current_level == "level4":
         current_level = level4(player)
+    elif current_level == "level5":
+        current_level = level5(player)
+    elif current_level == "level6":
+        current_level = level6(player)
+
+
 
 
